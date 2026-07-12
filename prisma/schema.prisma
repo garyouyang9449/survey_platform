@@ -1,0 +1,52 @@
+// Prisma schema for the survey → voice interview platform.
+// Server is the source of truth for survey answers, segment, and interview
+// progress. See docs for the overall data-flow design.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection for runtime queries (serverless-friendly).
+  url       = env("DATABASE_URL")
+  // Direct (non-pooling) connection used for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+model Respondent {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  surveySession SurveySession?
+  interview     Interview?
+}
+
+/// One row per respondent capturing their screening-survey progress.
+/// `answers` maps questionId -> selected value(s). `status` and `segment` are
+/// computed server-side by the survey reducer so they can never be spoofed.
+model SurveySession {
+  respondentId String   @id
+  answers      Json     @default("{}")
+  currentStep  Int      @default(0)
+  status       String   @default("in_progress") // in_progress | terminated | qualified
+  segment      String? // bmw_customer | potential_customer
+  updatedAt    DateTime @updatedAt
+
+  respondent Respondent @relation(fields: [respondentId], references: [id], onDelete: Cascade)
+}
+
+/// One row per qualified respondent tracking the voice interview. `progress`
+/// maps guide questionId -> true as the agent marks each answered. `transcript`
+/// is fetched from ElevenLabs on completion.
+model Interview {
+  respondentId            String   @id
+  elevenlabsConversationId String?
+  segment                 String // bmw_customer | potential_customer
+  progress                Json     @default("{}")
+  status                  String   @default("not_started") // not_started | in_progress | completed
+  transcript              Json?
+  updatedAt               DateTime @updatedAt
+
+  respondent Respondent @relation(fields: [respondentId], references: [id], onDelete: Cascade)
+}
