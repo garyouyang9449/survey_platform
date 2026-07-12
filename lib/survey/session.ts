@@ -101,3 +101,14 @@ export async function submitAnswer(
 
   return toView(next);
 }
+
+/**
+ * Clear a respondent's survey (and any associated interview) so they can start
+ * over from the first question. Used by the "Start over" action on the
+ * screen-out page. Returns a fresh survey view.
+ */
+export async function resetSurvey(respondentId: string): Promise<SurveyView> {
+  await prisma.interview.deleteMany({ where: { respondentId } });
+  await prisma.surveySession.deleteMany({ where: { respondentId } });
+  return toView(initialState());
+}

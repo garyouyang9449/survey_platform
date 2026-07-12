@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { fetchSurveyState, postAnswer } from "@/lib/survey/client";
+import { fetchSurveyState, postAnswer, resetSurvey } from "@/lib/survey/client";
 import type { SurveyView } from "@/lib/survey/session";
 import { ProgressBar } from "./ProgressBar";
 import { QuestionCard } from "./QuestionCard";
@@ -47,6 +47,18 @@ export function Survey() {
     }
   }
 
+  async function handleRestart() {
+    setSubmitting(true);
+    try {
+      const view = await resetSurvey();
+      setState({ phase: "ready", view });
+    } catch (err) {
+      setState({ phase: "error", message: (err as Error).message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (state.phase === "loading") {
     return <CenteredMessage>Loading your survey…</CenteredMessage>;
   }
@@ -82,7 +94,13 @@ export function Survey() {
             />
           )}
 
-          {view.status === "terminated" && <Disqualified key="disqualified" />}
+          {view.status === "terminated" && (
+            <Disqualified
+              key="disqualified"
+              onRestart={handleRestart}
+              restarting={submitting}
+            />
+          )}
 
           {view.status === "qualified" && view.segment && (
             <Qualified

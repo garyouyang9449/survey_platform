@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { getSurveyView, submitAnswer } from "./session";
+import { getSurveyView, submitAnswer, resetSurvey } from "./session";
 
 async function newRespondent(): Promise<string> {
   const r = await prisma.respondent.create({ data: {} });
@@ -71,5 +71,29 @@ describe("submitAnswer", () => {
   it("rejects an invalid option", async () => {
     const id = await newRespondent();
     await expect(submitAnswer(id, "age", ["bogus"])).rejects.toThrow();
+  });
+});
+
+describe("resetSurvey", () => {
+  it("clears a terminated session back to a fresh survey", async () => {
+    const id = await newRespondent();
+    await submitAnswer(id, "age", ["under_18"]);
+
+    const view = await resetSurvey(id);
+    expect(view.status).toBe("in_progress");
+    expect(view.currentStep).toBe(0);
+    expect(view.answers).toEqual({});
+    expect(view.question?.id).toBe("age");
+
+    // Persisted state is gone, so reloading also shows a fresh survey.
+    const reloaded = await getSurveyView(id);
+    expect(reloaded.status).toBe("in_progress");
+    expect(reloaded.answers).toEqual({});
+  });
+
+  it("is safe to call when no session exists", async () => {
+    const id = await newRespondent();
+    const view = await resetSurvey(id);
+    expect(view.status).toBe("in_progress");
   });
 });

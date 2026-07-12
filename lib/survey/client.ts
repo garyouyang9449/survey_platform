@@ -30,3 +30,9 @@ export async function postAnswer(
   });
   return parse(res);
 }
+
+/** Clear the survey and start over from the first question. */
+export async function resetSurvey(): Promise<SurveyView> {
+  const res = await fetch("/api/survey/reset", { method: "POST" });
+  return parse(res);
+}

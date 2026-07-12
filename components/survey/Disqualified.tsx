@@ -3,7 +3,13 @@
 import { motion } from "framer-motion";
 
 /** Polite screen-out shown when a respondent does not qualify. */
-export function Disqualified() {
+export function Disqualified({
+  onRestart,
+  restarting,
+}: {
+  onRestart?: () => void;
+  restarting?: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -22,6 +28,17 @@ export function Disqualified() {
         study. We truly appreciate your time and hope to work with you on a
         future opportunity.
       </p>
+      {onRestart && (
+        <button
+          type="button"
+          onClick={onRestart}
+          disabled={restarting}
+          className="mt-8 inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-5 py-3 text-sm font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+        >
+          {restarting ? "Restarting…" : "Start over"}
+          <span aria-hidden>↻</span>
+        </button>
+      )}
     </motion.div>
   );
 }
