@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { fetchSurveyState, postAnswer, resetSurvey } from "@/lib/survey/client";
+import { fetchSurveyState, postAnswer, resetSurvey, goBack } from "@/lib/survey/client";
 import type { SurveyView } from "@/lib/survey/session";
 import { ProgressBar } from "./ProgressBar";
 import { QuestionCard } from "./QuestionCard";
@@ -59,6 +59,19 @@ export function Survey() {
     }
   }
 
+  async function handleBack() {
+    if (state.phase !== "ready") return;
+    setSubmitting(true);
+    try {
+      const view = await goBack();
+      setState({ phase: "ready", view });
+    } catch (err) {
+      setState({ phase: "error", message: (err as Error).message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (state.phase === "loading") {
     return <CenteredMessage>Loading your survey…</CenteredMessage>;
   }
@@ -78,6 +91,15 @@ export function Survey() {
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 py-8 sm:py-16">
       {view.status === "in_progress" && (
         <div className="mb-10">
+          <button
+            type="button"
+            onClick={handleBack}
+            disabled={submitting || view.currentStep === 0}
+            className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900 disabled:pointer-events-none disabled:opacity-0 dark:hover:text-neutral-100"
+            aria-label="Go back to the previous question"
+          >
+            <span aria-hidden>←</span> Back
+          </button>
           <ProgressBar current={view.currentStep} total={view.totalQuestions} />
         </div>
       )}

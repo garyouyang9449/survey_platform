@@ -103,6 +103,31 @@ export async function submitAnswer(
 }
 
 /**
+ * Move the cursor back to the previous question so the respondent can review or
+ * change an earlier answer. Answers are preserved (prefilled on the client).
+ * No-op when already on the first question or once the survey has ended.
+ */
+export async function goBack(respondentId: string): Promise<SurveyView> {
+  const current = await loadState(respondentId);
+
+  if (current.status !== "in_progress" || current.currentStep <= 0) {
+    return toView(current);
+  }
+
+  const next: SurveyState = {
+    ...current,
+    currentStep: current.currentStep - 1,
+  };
+
+  await prisma.surveySession.update({
+    where: { respondentId },
+    data: { currentStep: next.currentStep },
+  });
+
+  return toView(next);
+}
+
+/**
  * Clear a respondent's survey (and any associated interview) so they can start
  * over from the first question. Used by the "Start over" action on the
  * screen-out page. Returns a fresh survey view.

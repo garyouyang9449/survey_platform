@@ -36,3 +36,9 @@ export async function resetSurvey(): Promise<SurveyView> {
   const res = await fetch("/api/survey/reset", { method: "POST" });
   return parse(res);
 }
+
+/** Move back to the previous question. */
+export async function goBack(): Promise<SurveyView> {
+  const res = await fetch("/api/survey/back", { method: "POST" });
+  return parse(res);
+}

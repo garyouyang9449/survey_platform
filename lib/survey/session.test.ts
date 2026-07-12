@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { getSurveyView, submitAnswer, resetSurvey } from "./session";
+import { getSurveyView, submitAnswer, resetSurvey, goBack } from "./session";
 
 async function newRespondent(): Promise<string> {
   const r = await prisma.respondent.create({ data: {} });
@@ -71,6 +71,52 @@ describe("submitAnswer", () => {
   it("rejects an invalid option", async () => {
     const id = await newRespondent();
     await expect(submitAnswer(id, "age", ["bogus"])).rejects.toThrow();
+  });
+});
+
+describe("goBack", () => {
+  it("returns to the previous question with the prior answer intact", async () => {
+    const id = await newRespondent();
+    await submitAnswer(id, "age", ["25_34"]); // now on income (step 1)
+    await submitAnswer(id, "income", ["50k_74k"]); // now on owns_car (step 2)
+
+    const back = await goBack(id);
+    expect(back.currentStep).toBe(1);
+    expect(back.question?.id).toBe("income");
+    expect(back.answers.income).toEqual(["50k_74k"]);
+
+    // Persisted, so a reload also lands on the previous question.
+    const reloaded = await getSurveyView(id);
+    expect(reloaded.currentStep).toBe(1);
+    expect(reloaded.question?.id).toBe("income");
+  });
+
+  it("lets the respondent change an earlier answer and move forward again", async () => {
+    const id = await newRespondent();
+    await submitAnswer(id, "age", ["25_34"]);
+    await submitAnswer(id, "income", ["50k_74k"]); // on owns_car (step 2)
+    await goBack(id); // back to income (step 1)
+
+    const changed = await submitAnswer(id, "income", ["150k_plus"]);
+    expect(changed.answers.income).toEqual(["150k_plus"]);
+    expect(changed.currentStep).toBe(2);
+    expect(changed.question?.id).toBe("owns_car");
+  });
+
+  it("is a no-op on the first question", async () => {
+    const id = await newRespondent();
+    await getSurveyView(id);
+    const back = await goBack(id);
+    expect(back.currentStep).toBe(0);
+    expect(back.question?.id).toBe("age");
+  });
+
+  it("is a no-op once the survey has ended", async () => {
+    const id = await newRespondent();
+    await submitAnswer(id, "age", ["under_18"]); // terminated
+    const back = await goBack(id);
+    expect(back.status).toBe("terminated");
+    expect(back.question).toBeNull();
   });
 });
 
