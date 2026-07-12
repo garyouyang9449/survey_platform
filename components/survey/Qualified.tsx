@@ -46,7 +46,7 @@ export function Qualified({
         <span aria-hidden>→</span>
       </button>
       <p className="mt-4 text-xs text-neutral-400">
-        Voice interview integration lands in a later step.
+        You&apos;ll be asked to allow microphone access.
       </p>
     </motion.div>
   );

@@ -287,8 +287,8 @@
 - ✅ Phase 0 — Foundation
 - ✅ Phase 1 — Survey engine
 - ✅ Phase 2 — Survey UI
-- ⬜ Phase 3 — ElevenLabs agent setup
-- ⬜ Phase 4 — Interview integration
-- ⬜ Phase 5 — Resumption
-- ⬜ Phase 6 — Transcript management
-- ⬜ Phase 7 — Reliability, polish, deploy, write-up
+- ✅ Phase 3 — ElevenLabs agent setup (guide data + docs/elevenlabs-setup.md)
+- ✅ Phase 4 — Interview integration (server helpers, routes, /interview UI)
+- ✅ Phase 5 — Resumption (stateless-agent + injected context)
+- ✅ Phase 6 — Transcript management (stitch + /results)
+- ◻️ Phase 7 — Live agent wiring (needs ELEVENLABS_AGENT_ID) + deploy verification

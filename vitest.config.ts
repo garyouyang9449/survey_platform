@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => ({
     exclude: ["node_modules", ".next"],
     // Load .env / .env.local into process.env so DB-backed tests can connect.
     env: loadEnv(mode, process.cwd(), ""),
+    // DB-backed integration tests share one Postgres; run files serially so
+    // their table cleanups don't race across parallel workers.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

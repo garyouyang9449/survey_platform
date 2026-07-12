@@ -9,8 +9,12 @@ interview. Built with Next.js 16 (App Router), Prisma + Postgres, and Tailwind.
 - **Phase 0** — Foundation: scaffold, env validation, Prisma data model,
   anonymous respondent identity (`proxy.ts`). ✅
 - **Phase 1** — Server-authoritative survey engine (questions, reducer, API). ✅
-- **Phase 2** — Typeform-style survey UI with resume. ✅
-- Phases 3–7 (ElevenLabs interview, resumption, transcripts) — upcoming.
+- **Phase 2** — Typeform-style survey UI with resume, Back, and Start Over. ✅
+- **Part 2** — Voice interview: guide + resume builder, ElevenLabs helpers,
+  interview APIs, `/interview` UI, transcript stitching + `/results`. ✅
+  (Live voice needs `ELEVENLABS_AGENT_ID` — see `docs/elevenlabs-setup.md`.)
+
+See `docs/architecture.md` for the full integration write-up.
 
 ## Prerequisites
 
