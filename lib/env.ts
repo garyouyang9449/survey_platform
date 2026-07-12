@@ -7,8 +7,16 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  ELEVENLABS_API_KEY: z.string().min(1, "ELEVENLABS_API_KEY is required"),
-  ELEVENLABS_AGENT_ID: z.string().min(1, "ELEVENLABS_AGENT_ID is required"),
+  // Trim to defend against stray whitespace/newlines from dashboard copy-paste,
+  // which otherwise produces confusing "invalid agent id" / auth errors.
+  ELEVENLABS_API_KEY: z
+    .string()
+    .trim()
+    .min(1, "ELEVENLABS_API_KEY is required"),
+  ELEVENLABS_AGENT_ID: z
+    .string()
+    .trim()
+    .min(1, "ELEVENLABS_AGENT_ID is required"),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
