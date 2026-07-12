@@ -17,9 +17,13 @@ const COPY: Record<Segment, string> = {
 export function Qualified({
   segment,
   onContinue,
+  onRestart,
+  restarting,
 }: {
   segment: Segment;
   onContinue?: () => void;
+  onRestart?: () => void;
+  restarting?: boolean;
 }) {
   return (
     <motion.div
@@ -48,6 +52,18 @@ export function Qualified({
       <p className="mt-4 text-xs text-neutral-400">
         You&apos;ll be asked to allow microphone access.
       </p>
+      {onRestart && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={onRestart}
+            disabled={restarting}
+            className="text-sm font-medium text-neutral-400 underline-offset-4 transition-colors hover:text-neutral-600 hover:underline disabled:opacity-50 dark:hover:text-neutral-300"
+          >
+            {restarting ? "Restarting…" : "Restart survey"}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

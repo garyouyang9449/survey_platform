@@ -132,6 +132,8 @@ export function Survey() {
                 // Interview route is wired up in a later phase.
                 window.location.href = "/interview";
               }}
+              onRestart={handleRestart}
+              restarting={submitting}
             />
           )}
         </AnimatePresence>
