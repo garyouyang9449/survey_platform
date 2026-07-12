@@ -32,27 +32,67 @@ export function Interview() {
   const [view, setView] = useState<InterviewView | null>(null);
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // DIAGNOSTIC: live audio levels (0–1) for the on-screen meters.
+  const [inputLevel, setInputLevel] = useState(0);
+  const [outputLevel, setOutputLevel] = useState(0);
 
   // Guards against treating an intentional disconnect (finish) as a drop.
   const finishingRef = useRef(false);
 
+  // DIAGNOSTIC: rolling audio-flow counters, logged once per second.
+  const audioInChunksRef = useRef(0); // agent audio chunks received (IN)
+  const lastVadRef = useRef(0); // latest server VAD score on your mic (OUT)
+
   const conversation = useConversation({
     onConnect: ({ conversationId }) => {
+      console.log("[interview] onConnect", conversationId);
       void recordConnection(conversationId);
       setPhase("active");
     },
     onDisconnect: (details) => {
+      console.log("[interview] onDisconnect", details);
       if (finishingRef.current) return;
-      // Unexpected drop → offer resume with preserved context.
+      // Any unexpected drop should surface — previously non-"error" reasons
+      // were swallowed, leaving the UI stuck on "Listening…" with no feedback.
       if (details.reason === "error") {
+        setError(`Interview connection error: ${details.message}`);
+        setPhase("reconnect");
+      } else if (details.reason === "agent") {
+        setError(
+          `The interviewer ended the session (${
+            details.closeReason ?? "no reason given"
+          }).`,
+        );
         setPhase("reconnect");
       }
+      // reason === "user": an intentional client-side close; nothing to do.
     },
-    onError: (message) => {
+    onError: (message, context) => {
+      console.error("[interview] onError", message, context);
       setError(message);
       setPhase("error");
     },
+    onDebug: (info) => {
+      console.log("[interview] onDebug", info);
+    },
+    onStatusChange: ({ status }) => {
+      console.log("[interview] status", status);
+    },
+    onModeChange: ({ mode }) => {
+      console.log("[interview] mode", mode);
+    },
+    // DIAGNOSTIC: agent audio arriving (audio IN). Counted; summarised each
+    // second by the polling effect below to avoid console spam.
+    onAudio: () => {
+      audioInChunksRef.current += 1;
+    },
+    // DIAGNOSTIC: server voice-activity score on YOUR mic (audio OUT). > 0
+    // means the agent's ASR is actually receiving your speech.
+    onVadScore: ({ vadScore }) => {
+      lastVadRef.current = vadScore;
+    },
     onMessage: ({ message, role }) => {
+      console.log("[interview] onMessage", role, message);
       if (!message) return;
       setTranscript((prev) => [...prev, { role, message }]);
     },
@@ -100,6 +140,36 @@ export function Interview() {
       active = false;
     };
   }, []);
+
+  // DIAGNOSTIC: while connected, poll the SDK's captured audio levels so we can
+  // tell whether the mic is feeding audio in (OUT) and the agent audio is
+  // coming back (IN). Also emits a compact console summary once per second.
+  useEffect(() => {
+    if (phase !== "active") return;
+    let ticks = 0;
+    const id = window.setInterval(() => {
+      try {
+        setInputLevel(conversation.getInputVolume());
+        setOutputLevel(conversation.getOutputVolume());
+      } catch {
+        /* not available yet */
+      }
+      ticks += 1;
+      if (ticks % 5 === 0) {
+        // ~ once per second (200ms * 5)
+        console.log("[interview] audio", {
+          out_micVolume: Number(conversation.getInputVolume().toFixed(3)),
+          out_vadScore: Number(lastVadRef.current.toFixed(3)),
+          in_agentVolume: Number(conversation.getOutputVolume().toFixed(3)),
+          in_agentChunksPerSec: audioInChunksRef.current,
+          isSpeaking: conversation.isSpeaking,
+          muted: conversation.isMuted,
+        });
+        audioInChunksRef.current = 0;
+      }
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [phase, conversation]);
 
   const start = useCallback(async () => {
     setError(null);
@@ -178,6 +248,14 @@ export function Interview() {
           phase={phase}
         />
 
+        {phase === "active" && (
+          <AudioMeters
+            inputLevel={inputLevel}
+            outputLevel={outputLevel}
+            muted={conversation.isMuted}
+          />
+        )}
+
         <div className="mt-8 flex-1">
           <TranscriptView turns={transcript} />
         </div>
@@ -229,7 +307,7 @@ export function Interview() {
             </span>
           )}
 
-          {error && phase === "error" && (
+          {error && (phase === "error" || phase === "reconnect") && (
             <span className="text-sm text-red-600">{error}</span>
           )}
         </div>
@@ -290,6 +368,66 @@ function MicOrb({
       <p className="mt-6 text-sm font-medium text-neutral-600 dark:text-neutral-300">
         {label}
       </p>
+    </div>
+  );
+}
+
+function AudioMeters({
+  inputLevel,
+  outputLevel,
+  muted,
+}: {
+  inputLevel: number;
+  outputLevel: number;
+  muted: boolean;
+}) {
+  return (
+    <div className="mt-4 space-y-3 rounded-xl border border-neutral-200 bg-white/50 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900/50">
+      <Meter
+        label={`Mic → agent (OUT)${muted ? " · MUTED" : ""}`}
+        level={inputLevel}
+        tone={muted ? "muted" : "in"}
+      />
+      <Meter label="Agent → you (IN)" level={outputLevel} tone="out" />
+      <p className="text-[11px] leading-snug text-neutral-400">
+        Speak: the OUT bar should move. When the interviewer talks, the IN bar
+        should move. If a bar stays flat, that direction of audio isn&apos;t
+        flowing.
+      </p>
+    </div>
+  );
+}
+
+function Meter({
+  label,
+  level,
+  tone,
+}: {
+  label: string;
+  level: number;
+  tone: "in" | "out" | "muted";
+}) {
+  const pct = Math.min(100, Math.round(level * 100 * 3)); // amplify for visibility
+  const color =
+    tone === "muted"
+      ? "bg-red-500"
+      : pct <= 3
+        ? "bg-neutral-400"
+        : tone === "in"
+          ? "bg-green-500"
+          : "bg-blue-500";
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-neutral-500">
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+        <div
+          className={`h-full rounded-full transition-[width] duration-150 ${color}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
